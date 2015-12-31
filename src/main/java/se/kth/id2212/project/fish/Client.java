@@ -8,7 +8,7 @@ public class Client {
 
     private static final String DEFAULT_SHARED_FILE_PATH = "shared";
     private static final String DEFAULT_SERVER_ADDRESS = "localhost";
-    private static final String DEFAULT_SERVER_PORT = "69198"; // FISH => 6-9-19-8
+    private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
 
     private String sharedFilePath, serverAddress, serverPort;
 
@@ -31,15 +31,14 @@ public class Client {
     }
 
     public void run() {
-        System.out.println("Client started.\n   path | " + sharedFilePath +
+        System.out.println("FISH client started.\n   path | " + sharedFilePath +
                 "\naddress | " + serverAddress + "\n   port | " + serverPort);
-        List<File> fileList = getFileList();
+        List<String> fileList = getFileList();
         // TODO: Implement a Client-Server protocol
-        exchangeFileLists();
     }
 
-    private List<File> getFileList() {
-        ArrayList<File> ret = new ArrayList<>();
+    private List<String> getFileList() {
+        ArrayList<String> ret = new ArrayList<>();
 
         System.out.println("\nShared files:");
         File dir = new File(sharedFilePath);
@@ -48,15 +47,11 @@ public class Client {
         for (File f : files) {
             if (f.isFile()) {
                 System.out.println(f.getName());
-                ret.add(f);
+                ret.add(f.getName());
             }
         }
 
         return ret;
-    }
-
-    private void exchangeFileLists() {
-
     }
 
     public static void main(String[] args) {
