@@ -1,4 +1,6 @@
-package se.kth.id2212.project.fish;
+package se.kth.id2212.project.fish.shared;
+
+import se.kth.id2212.project.fish.shared.ProtocolStatus;
 
 import java.io.Serializable;
 

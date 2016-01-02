@@ -1,10 +1,10 @@
-package se.kth.id2212.project.fish;
+package se.kth.id2212.project.fish.server;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import se.kth.id2212.project.fish.server.Server;
+import se.kth.id2212.project.fish.shared.Request;
+import se.kth.id2212.project.fish.shared.Response;
+
 import java.net.Socket;
-import java.util.List;
 
 /**
  * Created by marcus on 02/01/16.

@@ -1,4 +1,4 @@
-package se.kth.id2212.project.fish;
+package se.kth.id2212.project.fish.shared;
 
 /**
  * Created by marcus on 02/01/16.

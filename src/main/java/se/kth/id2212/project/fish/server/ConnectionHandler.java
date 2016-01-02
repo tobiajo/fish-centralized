@@ -1,4 +1,6 @@
-package se.kth.id2212.project.fish;
+package se.kth.id2212.project.fish.server;
+
+import se.kth.id2212.project.fish.server.Server;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;

@@ -1,4 +1,4 @@
-package se.kth.id2212.project.fish;
+package se.kth.id2212.project.fish.server;
 
 import java.io.IOException;
 import java.net.ServerSocket;
