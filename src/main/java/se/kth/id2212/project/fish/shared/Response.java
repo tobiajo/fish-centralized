@@ -2,6 +2,7 @@ package se.kth.id2212.project.fish.shared;
 
 import se.kth.id2212.project.fish.shared.ProtocolStatus;
 
+import java.io.File;
 import java.io.Serializable;
 
 /**
@@ -10,6 +11,7 @@ import java.io.Serializable;
 public class Response implements Serializable {
 
     private ProtocolStatus status;
+    private File file;
 
     public ProtocolStatus getStatus() {
         return status;
@@ -17,6 +19,14 @@ public class Response implements Serializable {
 
     public void setStatus(ProtocolStatus status) {
         this.status = status;
+    }
+
+    public File getFile() {
+        return file;
+    }
+
+    public void setFile(File file) {
+        this.file = file;
     }
 
 }

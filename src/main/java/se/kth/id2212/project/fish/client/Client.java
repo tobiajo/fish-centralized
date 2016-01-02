@@ -1,9 +1,11 @@
 package se.kth.id2212.project.fish.client;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import se.kth.id2212.project.fish.shared.ProtocolStatus;
+import se.kth.id2212.project.fish.shared.Request;
+import se.kth.id2212.project.fish.shared.Response;
+
+import java.io.*;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
@@ -37,13 +39,53 @@ public class Client {
     public void run() {
         System.out.println("FISH client started.\n   path | " + sharedFilePath +
                 "\naddress | " + serverAddress + "\n   port | " + serverPort);
+
         List<String> fileList = getFileList();
 
+        System.out.println("\n Shared files:");
+        fileList.forEach(file -> System.out.println(file));
+
+
+        register();
 
         promptMenu();
 
 
-        // TODO: Implement a Client-Server protocol
+        // TODO: Implement response to file requests
+
+    }
+
+    private void register() {
+
+        Request registerRequest = new Request();
+        List<String> sharedFiles = getFileList();
+        registerRequest.setStatus(ProtocolStatus.REGISTER);
+        registerRequest.setSharedFiles(sharedFiles);
+
+
+        try {
+            Socket serverSocket = new Socket(serverAddress, Integer.parseInt(serverPort));
+
+            ObjectOutputStream out = new ObjectOutputStream(serverSocket.getOutputStream());
+            out.writeObject(registerRequest);
+            out.flush();
+
+            ObjectInputStream in = new ObjectInputStream(serverSocket.getInputStream());
+            Response registrationResponse = (Response) in.readObject();
+
+            if(registrationResponse.getStatus().equals(ProtocolStatus.OK)) {
+                System.out.println("\nRegistered at server!");
+            } else {
+                System.out.println("\nRegistration with server failed!");
+            }
+
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+
 
     }
 
@@ -139,13 +181,11 @@ public class Client {
     private List<String> getFileList() {
         ArrayList<String> ret = new ArrayList<>();
 
-        System.out.println("\nShared files:");
         File dir = new File(sharedFilePath);
         dir.mkdir();
         File[] files = dir.listFiles();
         for (File f : files) {
             if (f.isFile()) {
-                System.out.println(f.getName());
                 ret.add(f.getName());
             }
         }

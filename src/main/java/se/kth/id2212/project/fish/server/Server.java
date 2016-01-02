@@ -13,7 +13,7 @@ public class Server {
     private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
 
     private String serverPort;
-    private HashMap<Socket, List<String>> fileLists;
+    private HashMap<Socket, List<String>> fileLists = new HashMap<>();
 
     public Server(String serverPort) {
         if (serverPort != null) {

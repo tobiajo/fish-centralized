@@ -1,6 +1,8 @@
 package se.kth.id2212.project.fish.server;
 
 import se.kth.id2212.project.fish.server.Server;
+import se.kth.id2212.project.fish.shared.Request;
+import se.kth.id2212.project.fish.shared.Response;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -14,34 +16,49 @@ public class ConnectionHandler implements Runnable {
     private ObjectOutputStream out;
     private Server server;
     private Socket clientSocket;
+    private RequestHandler requestHandler;
 
     public ConnectionHandler(Server server, Socket clientSocket) {
         this.server = server;
         this.clientSocket = clientSocket;
+        requestHandler = new RequestHandler(server);
     }
 
     @Override
     public void run() {
+
         register();
-        try {
-            String searchRequest = (String) in.readObject();
-            List<String> sharers = server.searchFileLists(searchRequest);
-            out.writeObject(sharers);
-        } catch (IOException e) {
-            // connection lost
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+
+        while(true) {
+            try {
+
+                Request request = (Request) in.readObject();
+
+                requestHandler.handleRequest(request);
+
+            } catch (IOException e) {
+
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
         }
-        unregister();
+
     }
+
 
     private void register() {
         try {
             out = new ObjectOutputStream(clientSocket.getOutputStream());
             out.flush();
             in = new ObjectInputStream(clientSocket.getInputStream());
-            List<String> fileList = (List<String>) in.readObject();
-            server.addFileList(clientSocket, fileList);
+            Request registerRequest = (Request) in.readObject();
+
+            Response response = requestHandler.register(clientSocket, registerRequest);
+            out.writeObject(response);
+            out.flush();
+
+
         } catch (IOException e) {
             e.printStackTrace();
         } catch (ClassNotFoundException e) {
