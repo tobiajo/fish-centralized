@@ -1,8 +1,12 @@
 package se.kth.id2212.project.fish;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.StringTokenizer;
 
 public class Client {
 
@@ -34,8 +38,103 @@ public class Client {
         System.out.println("FISH client started.\n   path | " + sharedFilePath +
                 "\naddress | " + serverAddress + "\n   port | " + serverPort);
         List<String> fileList = getFileList();
+
+
+        promptMenu();
+
+
         // TODO: Implement a Client-Server protocol
+
     }
+
+
+    private void promptMenu() {
+        BufferedReader consoleIn = new BufferedReader(new InputStreamReader(System.in));
+
+        while (true) {
+
+            CommandName[] options = CommandName.values();
+
+            System.out.println("\nCommand options:");
+            for(CommandName option : options) {
+                System.out.println(" - " + option.name());
+            }
+            System.out.print("\n>");
+
+            try {
+                String userInput = consoleIn.readLine();
+                executeCommand(parse(userInput));
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+    void executeCommand(Command command) {
+        if (command == null) {
+            return;
+        }
+
+        switch (command.getCommandName()) {
+            case request:
+                System.out.println("DUMMY: Requesting file");
+                return;
+            case search:
+                System.out.println("DUMMY: Searching for file");
+                return;
+            case quit:
+                System.exit(0);
+            default:
+                System.out.println("Illegal command");
+                return;
+        }
+
+    }
+
+
+
+
+    private Command parse(String userInput) {
+        if (userInput == null) {
+            return null;
+        }
+
+        StringTokenizer tokenizer = new StringTokenizer(userInput);
+        if (tokenizer.countTokens() == 0) {
+            return null;
+        }
+
+        CommandName commandName = null;
+        String fileName = null;
+        int userInputTokenNo = 1;
+
+        while (tokenizer.hasMoreTokens()) {
+            switch (userInputTokenNo) {
+                case 1:
+                    try {
+                        String commandNameString = tokenizer.nextToken();
+                        commandName = CommandName.valueOf(CommandName.class, commandNameString);
+                    } catch (IllegalArgumentException commandDoesNotExist) {
+                        System.out.println("Illegal command");
+                        return null;
+                    }
+                    break;
+                case 2:
+                    fileName = tokenizer.nextToken();
+                    break;
+                case 3:
+                    break;
+                default:
+                    System.out.println("Illegal command");
+                    return null;
+            }
+            userInputTokenNo++;
+        }
+        return new Command(commandName, fileName);
+    }
+
+
 
     private List<String> getFileList() {
         ArrayList<String> ret = new ArrayList<>();

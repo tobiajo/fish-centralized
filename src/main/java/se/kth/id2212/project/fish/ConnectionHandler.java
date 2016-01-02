@@ -8,10 +8,10 @@ import java.util.List;
 
 public class ConnectionHandler implements Runnable {
 
-    private Server server;
-    private Socket clientSocket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
+    private Server server;
+    private Socket clientSocket;
 
     public ConnectionHandler(Server server, Socket clientSocket) {
         this.server = server;
@@ -57,4 +57,5 @@ public class ConnectionHandler implements Runnable {
             e.printStackTrace();
         }
     }
+
 }
