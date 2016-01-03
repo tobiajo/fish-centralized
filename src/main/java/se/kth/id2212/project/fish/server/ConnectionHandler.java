@@ -1,14 +1,9 @@
 package se.kth.id2212.project.fish.server;
 
-import se.kth.id2212.project.fish.server.Server;
-import se.kth.id2212.project.fish.shared.Request;
-import se.kth.id2212.project.fish.shared.Response;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-import java.util.List;
 
 public class ConnectionHandler implements Runnable {
 

@@ -1,8 +1,8 @@
 package se.kth.id2212.project.fish.client;
 
-import se.kth.id2212.project.fish.shared.ProtocolStatus;
-import se.kth.id2212.project.fish.shared.Request;
-import se.kth.id2212.project.fish.shared.Response;
+import se.kth.id2212.project.fish.shared.Message;
+import se.kth.id2212.project.fish.shared.MessageStatus;
+import se.kth.id2212.project.fish.shared.MessageType;
 
 import java.io.*;
 import java.net.Socket;
@@ -57,11 +57,7 @@ public class Client {
 
     private void register() {
 
-        Request registerRequest = new Request();
-        List<String> sharedFiles = getFileList();
-        registerRequest.setStatus(ProtocolStatus.REGISTER);
-        registerRequest.setSharedFiles(sharedFiles);
-
+        Message registerRequest = new Message(MessageType.REQUEST, MessageStatus.REGISTER, getFileList());
 
         try {
             Socket serverSocket = new Socket(serverAddress, Integer.parseInt(serverPort));
@@ -71,9 +67,9 @@ public class Client {
             out.flush();
 
             ObjectInputStream in = new ObjectInputStream(serverSocket.getInputStream());
-            Response registrationResponse = (Response) in.readObject();
+            Message registrationResponse = (Message) in.readObject();
 
-            if(registrationResponse.getStatus().equals(ProtocolStatus.OK)) {
+            if(registrationResponse.getStatus().equals(MessageStatus.OK)) {
                 System.out.println("\nRegistered at server!");
             } else {
                 System.out.println("\nRegistration with server failed!");
@@ -178,7 +174,7 @@ public class Client {
 
 
 
-    private List<String> getFileList() {
+    private ArrayList<String> getFileList() {
         ArrayList<String> ret = new ArrayList<>();
 
         File dir = new File(sharedFilePath);

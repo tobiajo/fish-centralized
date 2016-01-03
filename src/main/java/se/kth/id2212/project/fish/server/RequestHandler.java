@@ -1,11 +1,7 @@
 package se.kth.id2212.project.fish.server;
 
-import se.kth.id2212.project.fish.server.Server;
-import se.kth.id2212.project.fish.shared.ProtocolStatus;
-import se.kth.id2212.project.fish.shared.Request;
-import se.kth.id2212.project.fish.shared.Response;
+import se.kth.id2212.project.fish.shared.MessageStatus;
 
-import java.io.IOException;
 import java.net.Socket;
 import java.util.List;
 
@@ -40,7 +36,7 @@ public class RequestHandler {
 
         server.addFileList(clientSocket, sharedFiles);
         Response response = new Response();
-        response.setStatus(ProtocolStatus.OK);
+        response.setStatus(MessageStatus.OK);
         System.out.println("\nA Client has been successfully registered!");
         System.out.println("The following files where added: ");
 
