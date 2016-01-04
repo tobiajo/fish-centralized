@@ -46,8 +46,24 @@ public class Client {
         System.out.println("Connecting to " + serverAddress + ":" + serverPort + "...");
 
         if(DEBUG != true) {
+            System.out.println("Sharing files");
             share();
         }
+
+        if(DEBUG == true) {
+            try {
+                fetch("test.txt", "127.0.0.1", ".");
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            } catch (ProtocolException e) {
+                e.printStackTrace();
+            }
+
+
+        }
+
 
 
         if (connect() && register())  {
@@ -141,16 +157,16 @@ public class Client {
 
     private void fetch(String fileName, String address, String destinationPath) throws IOException, ClassNotFoundException, ProtocolException {
         Socket sourceSocket = new Socket(address, Integer.parseInt(sharePort));
-        out = new ObjectOutputStream(socket.getOutputStream());
+        out = new ObjectOutputStream(sourceSocket.getOutputStream());
         out.flush();
 
-        out.writeObject(new Message(MessageDescriptor.FETCH_FILE, fileName));
+        out.writeObject(new Message(MessageDescriptor.FETCH_FILE, destinationPath + "/" + fileName));
 
-        FileOutputStream fos = new FileOutputStream(destinationPath);
+        FileOutputStream fos = new FileOutputStream(fileName);
         BufferedOutputStream out = new BufferedOutputStream(fos);
         byte[] buffer = new byte[1024];
         int count;
-        InputStream in = socket.getInputStream();
+        InputStream in = sourceSocket.getInputStream();
         while((count = in.read(buffer)) >= 0) {
             fos.write(buffer, 0, count);
         }
@@ -162,18 +178,40 @@ public class Client {
 
     private void search() throws IOException, ClassNotFoundException, ProtocolException {
         System.out.print("Request: ");
-        out.writeObject(new Message(MessageDescriptor.SEARCH, new Scanner(System.in).nextLine()));
+        String fileName = new Scanner(System.in).nextLine();
+
+        out.writeObject(new Message(MessageDescriptor.SEARCH, fileName));
         Message m = (Message) in.readObject();
         if (m.getDescriptor() != MessageDescriptor.SEARCH_RESULT) {
             throw new ProtocolException();
         }
+
+        final int[] seedNumber = {1};
+        StringBuilder sb = new StringBuilder();
         if (m.getData() != null) {
             System.out.println("Available at:");
-            ((ArrayList<String>) m.getData()).forEach(address -> System.out.println(address));
+        ((ArrayList<String>) m.getData()).forEach(address -> {System.out.println(seedNumber[0] + ". "+ address); seedNumber[0]++; });
+            System.out.println("Do you want to download the file?");
+
+            System.out.print("\n1. Yes\n2. No\n> ");
+
+            switch (new Scanner(System.in).nextLine()) {
+                case "1":
+                    // TODO: prompt user input for which seed to download from
+
+                    break;
+                case "2":
+                    break;
+                default:
+                    System.out.println("Invalid input");
+                    break;
+            }
+
         } else {
             System.out.println("File not found");
         }
     }
+
 
     private void unregister() throws IOException, ClassNotFoundException, ProtocolException {
         out.writeObject(new Message(MessageDescriptor.UNREGISTER, null));
