@@ -14,25 +14,54 @@ public class Client {
     private static final String DEFAULT_SHARED_FILE_PATH = "shared";
     private static final String DEFAULT_SERVER_ADDRESS = "localhost";
     private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
+    private static final String DEFAULT_SHARE_PORT = "6959";
 
-    private String sharedFilePath, serverAddress, serverPort;
+    private static final boolean DEBUG = false;
+
+    public String getSharedFilePath() {
+        return sharedFilePath;
+    }
+
+    public String getSharePort() {
+        return sharePort;
+    }
+
+    private String sharedFilePath, serverAddress, serverPort, sharePort;
     private Socket socket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
 
     public Client() {
-        this(DEFAULT_SHARED_FILE_PATH, DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT);
+        this(DEFAULT_SHARED_FILE_PATH, DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT, DEFAULT_SHARE_PORT);
     }
 
-    public Client(String sharedFilePath, String serverAddress, String serverPort) {
+    public Client(String sharedFilePath, String serverAddress, String serverPort, String sharePort) {
         this.sharedFilePath = sharedFilePath;
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
+        this.sharePort = sharePort;
     }
 
     public void run() {
         System.out.println("Connecting to " + serverAddress + ":" + serverPort + "...");
-        if (connect() && register()) prompt();
+
+        if(DEBUG != true) {
+            share();
+        }
+
+
+        if (connect() && register())  {
+            prompt();
+        }
+
+    }
+
+
+    private void share() {
+
+        ShareThread shareThread = new ShareThread(this);
+        shareThread.start();
+
     }
 
     private boolean connect() {
@@ -64,7 +93,7 @@ public class Client {
         }
     }
 
-    private ArrayList<String> getFileList() {
+    public ArrayList<String> getFileList() {
         ArrayList<String> ret = new ArrayList<>();
 
         System.out.println("Shared files:");
@@ -110,6 +139,27 @@ public class Client {
         }
     }
 
+    private void fetch(String fileName, String address, String destinationPath) throws IOException, ClassNotFoundException, ProtocolException {
+        Socket sourceSocket = new Socket(address, Integer.parseInt(sharePort));
+        out = new ObjectOutputStream(socket.getOutputStream());
+        out.flush();
+
+        out.writeObject(new Message(MessageDescriptor.FETCH_FILE, fileName));
+
+        FileOutputStream fos = new FileOutputStream(destinationPath);
+        BufferedOutputStream out = new BufferedOutputStream(fos);
+        byte[] buffer = new byte[1024];
+        int count;
+        InputStream in = socket.getInputStream();
+        while((count = in.read(buffer)) >= 0) {
+            fos.write(buffer, 0, count);
+        }
+
+        System.out.println("File downloaded!");
+
+
+    }
+
     private void search() throws IOException, ClassNotFoundException, ProtocolException {
         System.out.print("Request: ");
         out.writeObject(new Message(MessageDescriptor.SEARCH, new Scanner(System.in).nextLine()));
@@ -136,8 +186,8 @@ public class Client {
     public static void main(String[] args) {
         if (args.length == 0) {
             new Client().run();
-        } else if (args.length == 3) {
-            new Client(args[0], args[1], args[2]).run();
+        } else if (args.length == 4) {
+            new Client(args[0], args[1], args[2], args[3]).run();
         } else {
             System.out.println("error: invalid number of arguments");
         }
