@@ -5,38 +5,37 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 
 public class Server {
 
     private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
 
     private String serverPort;
-    private HashMap<Socket, List<String>> fileLists = new HashMap<>();
+    private HashMap<Socket, ArrayList<String>> fileLists = new HashMap<>();
+
+    public Server() {
+        this(DEFAULT_SERVER_PORT);
+    }
 
     public Server(String serverPort) {
-        if (serverPort != null) {
-            this.serverPort = serverPort;
-        } else {
-            this.serverPort = DEFAULT_SERVER_PORT;
-        }
+        this.serverPort = serverPort;
     }
 
     public void run() {
         try {
+            System.out.println("Opening server socket " + serverPort + "...");
             ServerSocket serverSocket = new ServerSocket(Integer.parseInt(serverPort));
-            System.out.println("FISH server started.\nPort | " + serverSocket.getLocalPort());
+            System.out.println("\nFISH server ready.\n");
             for (;;) {
-                Socket clientSocket = serverSocket.accept();
-                new Thread(new ConnectionHandler(this, clientSocket)).start();
+                Socket socket = serverSocket.accept();
+                new Thread(new ClientHandler(this, socket)).start();
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public void addFileList(Socket clientSocket, List<String> fileList) {
+    public void addFileList(Socket clientSocket, ArrayList<String> fileList) {
         fileLists.put(clientSocket, fileList);
     }
 
@@ -44,23 +43,28 @@ public class Server {
         fileLists.remove(clientSocket);
     }
 
-    public List<String> searchFileLists(String request) {
+    public ArrayList<String> searchFileLists(String request) {
         ArrayList<String> ret = new ArrayList<>();
 
-        Iterator it = fileLists.keySet().iterator();
-        while (it.hasNext()) {
-            Socket s = (Socket) it.next();
-            for (String file : fileLists.get(s)) {
+        fileLists.keySet().forEach(socket -> {
+            fileLists.get(socket).forEach(file -> {
                 if (file.equals(request)) {
-                    ret.add(s.getInetAddress().getHostAddress());
+                    ret.add(socket.getInetAddress().getHostAddress());
                 }
-            }
-        }
+            });
+        });
+        if (ret.size() == 0) return null;
 
         return ret;
     }
 
     public static void main(String[] args) {
-        new Server(args[0]).run();
+        if (args.length == 0) {
+            new Server().run();
+        } else if (args.length == 1) {
+            new Server(args[0]).run();
+        } else {
+            System.out.println("error: invalid number of arguments");
+        }
     }
 }

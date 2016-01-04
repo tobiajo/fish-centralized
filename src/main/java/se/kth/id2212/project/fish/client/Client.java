@@ -1,14 +1,13 @@
 package se.kth.id2212.project.fish.client;
 
-import se.kth.id2212.project.fish.shared.Message;
-import se.kth.id2212.project.fish.shared.MessageStatus;
-import se.kth.id2212.project.fish.shared.MessageType;
+import se.kth.id2212.project.fish.common.Message;
+import se.kth.id2212.project.fish.common.MessageDescriptor;
+import se.kth.id2212.project.fish.common.ProtocolException;
 
 import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
+import java.util.Scanner;
 
 public class Client {
 
@@ -17,171 +16,64 @@ public class Client {
     private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
 
     private String sharedFilePath, serverAddress, serverPort;
+    private Socket socket;
+    private ObjectInputStream in;
+    private ObjectOutputStream out;
+
+    public Client() {
+        this(DEFAULT_SHARED_FILE_PATH, DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT);
+    }
 
     public Client(String sharedFilePath, String serverAddress, String serverPort) {
-        if (sharedFilePath != null) {
-            this.sharedFilePath = sharedFilePath;
-        } else {
-            this.sharedFilePath = DEFAULT_SHARED_FILE_PATH;
-        }
-        if (serverAddress != null) {
-            this.serverAddress = serverAddress;
-        } else {
-            this.serverAddress = DEFAULT_SERVER_ADDRESS;
-        }
-        if (serverPort != null) {
-            this.serverPort = serverPort;
-        } else {
-            this.serverPort = DEFAULT_SERVER_PORT;
-        }
+        this.sharedFilePath = sharedFilePath;
+        this.serverAddress = serverAddress;
+        this.serverPort = serverPort;
     }
 
     public void run() {
-        System.out.println("FISH client started.\n   path | " + sharedFilePath +
-                "\naddress | " + serverAddress + "\n   port | " + serverPort);
-
-        List<String> fileList = getFileList();
-
-        System.out.println("\n Shared files:");
-        fileList.forEach(file -> System.out.println(file));
-
-
-        register();
-
-        promptMenu();
-
-
-        // TODO: Implement response to file requests
-
+        System.out.println("Connecting to " + serverAddress + ":" + serverPort + "...");
+        if (connect() && register()) prompt();
     }
 
-    private void register() {
-
-        Message registerRequest = new Message(MessageType.REQUEST, MessageStatus.REGISTER, getFileList());
-
+    private boolean connect() {
         try {
-            Socket serverSocket = new Socket(serverAddress, Integer.parseInt(serverPort));
-
-            ObjectOutputStream out = new ObjectOutputStream(serverSocket.getOutputStream());
-            out.writeObject(registerRequest);
+            socket = new Socket(serverAddress, Integer.parseInt(serverPort));
+            out = new ObjectOutputStream(socket.getOutputStream());
             out.flush();
-
-            ObjectInputStream in = new ObjectInputStream(serverSocket.getInputStream());
-            Message registrationResponse = (Message) in.readObject();
-
-            if(registrationResponse.getStatus().equals(MessageStatus.OK)) {
-                System.out.println("\nRegistered at server!");
-            } else {
-                System.out.println("\nRegistration with server failed!");
-            }
-
-
+            in = new ObjectInputStream(socket.getInputStream());
+            System.out.println("Connected");
+            return true;
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            System.out.println("Connecting failed");
+            return false;
         }
-
-
     }
 
-
-    private void promptMenu() {
-        BufferedReader consoleIn = new BufferedReader(new InputStreamReader(System.in));
-
-        while (true) {
-
-            CommandName[] options = CommandName.values();
-
-            System.out.println("\nCommand options:");
-            for(CommandName option : options) {
-                System.out.println(" - " + option.name());
+    private boolean register() {
+        try {
+            out.writeObject(new Message(MessageDescriptor.REGISTER, getFileList()));
+            Message m = (Message) in.readObject();
+            if (m.getDescriptor() != MessageDescriptor.REGISTER_OK) {
+                throw new ProtocolException();
             }
-            System.out.print("\n>");
-
-            try {
-                String userInput = consoleIn.readLine();
-                executeCommand(parse(userInput));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            System.out.println("Registered");
+            return true;
+        } catch (IOException | ClassNotFoundException | ProtocolException e) {
+            System.out.println("Registration failed");
+            return false;
         }
     }
-
-
-    void executeCommand(Command command) {
-        if (command == null) {
-            return;
-        }
-
-        switch (command.getCommandName()) {
-            case request:
-                System.out.println("DUMMY: Requesting file");
-                return;
-            case search:
-                System.out.println("DUMMY: Searching for file");
-                return;
-            case quit:
-                System.exit(0);
-            default:
-                System.out.println("Illegal command");
-                return;
-        }
-
-    }
-
-
-
-
-    private Command parse(String userInput) {
-        if (userInput == null) {
-            return null;
-        }
-
-        StringTokenizer tokenizer = new StringTokenizer(userInput);
-        if (tokenizer.countTokens() == 0) {
-            return null;
-        }
-
-        CommandName commandName = null;
-        String fileName = null;
-        int userInputTokenNo = 1;
-
-        while (tokenizer.hasMoreTokens()) {
-            switch (userInputTokenNo) {
-                case 1:
-                    try {
-                        String commandNameString = tokenizer.nextToken();
-                        commandName = CommandName.valueOf(CommandName.class, commandNameString);
-                    } catch (IllegalArgumentException commandDoesNotExist) {
-                        System.out.println("Illegal command");
-                        return null;
-                    }
-                    break;
-                case 2:
-                    fileName = tokenizer.nextToken();
-                    break;
-                case 3:
-                    break;
-                default:
-                    System.out.println("Illegal command");
-                    return null;
-            }
-            userInputTokenNo++;
-        }
-        return new Command(commandName, fileName);
-    }
-
-
 
     private ArrayList<String> getFileList() {
         ArrayList<String> ret = new ArrayList<>();
 
+        System.out.println("Shared files:");
         File dir = new File(sharedFilePath);
         dir.mkdir();
         File[] files = dir.listFiles();
         for (File f : files) {
             if (f.isFile()) {
+                System.out.println("  " + sharedFilePath + "/" + f.getName());
                 ret.add(f.getName());
             }
         }
@@ -189,7 +81,65 @@ public class Client {
         return ret;
     }
 
+    private void prompt() {
+        System.out.println("\nFISH client ready.");
+        for (boolean stop = false; !stop; ) {
+            System.out.print("\n1. Search\n2. Exit\n> ");
+            switch (new Scanner(System.in).nextLine()) {
+                case "1":
+                    try {
+                        search();
+                    } catch (IOException | ClassNotFoundException | ProtocolException e) {
+                        System.out.println("Search failed");
+                    }
+                    break;
+                case "2":
+                    try {
+                        unregister();
+                        System.out.println("Unregistered");
+                    } catch (IOException | ClassNotFoundException | ProtocolException e) {
+                        System.out.println("Unregistration failed");
+                        return;
+                    }
+                    stop = true;
+                    break;
+                default:
+                    System.out.println("Invalid input");
+                    break;
+            }
+        }
+    }
+
+    private void search() throws IOException, ClassNotFoundException, ProtocolException {
+        System.out.print("Request: ");
+        out.writeObject(new Message(MessageDescriptor.SEARCH, new Scanner(System.in).nextLine()));
+        Message m = (Message) in.readObject();
+        if (m.getDescriptor() != MessageDescriptor.SEARCH_RESULT) {
+            throw new ProtocolException();
+        }
+        if (m.getData() != null) {
+            System.out.println("Available at:");
+            ((ArrayList<String>) m.getData()).forEach(address -> System.out.println(address));
+        } else {
+            System.out.println("File not found");
+        }
+    }
+
+    private void unregister() throws IOException, ClassNotFoundException, ProtocolException {
+        out.writeObject(new Message(MessageDescriptor.UNREGISTER, null));
+        Message m = (Message) in.readObject();
+        if (m.getDescriptor() != MessageDescriptor.UNREGISTER_OK) {
+            throw new ProtocolException();
+        }
+    }
+
     public static void main(String[] args) {
-        new Client(args[0], args[1], args[2]).run();
+        if (args.length == 0) {
+            new Client().run();
+        } else if (args.length == 3) {
+            new Client(args[0], args[1], args[2]).run();
+        } else {
+            System.out.println("error: invalid number of arguments");
+        }
     }
 }
