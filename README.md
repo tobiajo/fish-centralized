@@ -1,2 +1,2 @@
-# fish-file-sharing
-FISH: FIle SHaring, a Distributed File System
+# fish-centralized-server
+FISH: FIle SHaring, a Distributed File System - Centralized Server
