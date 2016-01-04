@@ -50,21 +50,6 @@ public class Client {
             share();
         }
 
-        if(DEBUG == true) {
-            try {
-                fetch("test.txt", "127.0.0.1", ".");
-            } catch (IOException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            } catch (ProtocolException e) {
-                e.printStackTrace();
-            }
-
-
-        }
-
-
 
         if (connect() && register())  {
             prompt();
@@ -190,14 +175,34 @@ public class Client {
         StringBuilder sb = new StringBuilder();
         if (m.getData() != null) {
             System.out.println("Available at:");
-        ((ArrayList<String>) m.getData()).forEach(address -> {System.out.println(seedNumber[0] + ". "+ address); seedNumber[0]++; });
+
+            ArrayList<String> hosts = (ArrayList<String>) m.getData();
+            hosts.forEach(address -> {System.out.println(seedNumber[0] + ". "+ address); seedNumber[0]++; });
             System.out.println("Do you want to download the file?");
 
             System.out.print("\n1. Yes\n2. No\n> ");
+            Scanner input = new Scanner(System.in);
 
-            switch (new Scanner(System.in).nextLine()) {
+
+            int num = 0;
+            switch (input.nextLine()) {
                 case "1":
-                    // TODO: prompt user input for which seed to download from
+                    System.out.println("Pick host number:\n>");
+                    try {
+                       num =  Integer.parseInt(input.next());
+
+                    } catch (NumberFormatException e) {
+                        System.out.println("Invalid input");
+                        break;
+                    }
+
+                    if((num > seedNumber[0]) && (num > 0)) {
+                        System.out.println("Invalid input");
+                        break;
+                    }
+
+                    fetch(fileName,hosts.get(num-1),sharedFilePath);
+
 
                     break;
                 case "2":

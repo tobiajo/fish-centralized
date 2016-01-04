@@ -39,7 +39,7 @@ public class ShareHandler implements Runnable{
                 File file = new File(client.getSharedFilePath() + "/" + fileName);
 
                 int count;
-                byte[] buffer = new byte[1024];
+                byte[] buffer = new byte[Math.toIntExact(file.length())];
 
                 BufferedInputStream in = new BufferedInputStream(new FileInputStream(file));
                 while((count = in.read(buffer)) > 0) {
