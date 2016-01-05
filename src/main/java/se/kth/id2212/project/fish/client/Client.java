@@ -14,6 +14,8 @@ import java.util.Scanner;
 
 public class Client {
 
+    public static final String USAGE = "Usage: java Client [download_path] [shared_file_path] [server_address] [server_port]";
+
     private static final String DEFAULT_DOWNLOAD_PATH = "download";
     private static final String DEFAULT_SHARED_FILE_PATH = "shared";
     private static final String DEFAULT_SERVER_ADDRESS = "127.0.0.1";
@@ -219,10 +221,14 @@ public class Client {
         if (args.length == 0) {
             new Client().run();
         } else if (args.length == 4) {
-            new Client(args[0], args[1], args[2], Integer.parseInt(args[3])).run();
+            try {
+                int serverPort = Integer.parseInt(args[3]);
+                new Client(args[0], args[1], args[2], serverPort).run();
+            } catch (NumberFormatException e) {
+                System.out.println("FISH client: invalid server port\n" + USAGE);
+            }
         } else {
-            System.out.println("FISH client: invalid number of arguments\n" +
-                    "Usage: java Client [download_path] [shared_file_path] [server_address] [server_port]");
+            System.out.println("FISH client: invalid number of arguments\n" + USAGE);
         }
     }
 }

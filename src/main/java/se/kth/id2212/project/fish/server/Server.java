@@ -10,6 +10,8 @@ import java.util.HashMap;
 
 public class Server {
 
+    public static final String USAGE = "Usage: java Server [server_port]";
+
     private static final int DEFAULT_SERVER_PORT = 6958; // FI5H => 6-9-5-8
 
     private int serverPort;
@@ -68,8 +70,7 @@ public class Server {
         } else if (args.length == 1) {
             new Server(Integer.parseInt(args[0])).run();
         } else {
-            System.out.println("FISH server: invalid number of arguments\n" +
-                    "Usage: java Server [server_port]");
+            System.out.println("FISH server: invalid number of arguments\n" + USAGE);
         }
     }
 }
