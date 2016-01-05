@@ -82,10 +82,9 @@ public class ClientHandler implements Runnable {
                     default:
                         throw new ProtocolException("Received " + m.getDescriptor().name());
                 }
-            } catch (IOException e) {
-                stop = true; // connection error => break loop
-            } catch (ClassNotFoundException | ProtocolException e) {
-                clientPrint("Received invalid message: " + e.getMessage());
+            } catch (IOException | ClassNotFoundException | ProtocolException e) {
+                clientPrint("Error: " + e.getMessage());
+                stop = true;
             }
         }
     }
