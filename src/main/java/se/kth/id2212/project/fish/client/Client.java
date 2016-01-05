@@ -1,8 +1,8 @@
 package se.kth.id2212.project.fish.client;
 
+import se.kth.id2212.project.fish.common.FileAddress;
 import se.kth.id2212.project.fish.common.Message;
 import se.kth.id2212.project.fish.common.MessageDescriptor;
-import se.kth.id2212.project.fish.common.ClientAddress;
 import se.kth.id2212.project.fish.common.ProtocolException;
 
 import java.io.*;
@@ -40,7 +40,7 @@ public class Client {
     public void run() {
         System.out.println("Connecting to " + serverAddress + ":" + serverPort + "...");
 
-        if (connect() && register())  {
+        if (connect() && register()) {
             int sharePort = serverSocket.getLocalPort();
             System.out.println("Opening share socket " + sharePort + "...");
             P2PHandler.getShareThread(sharedFilePath, sharePort).start();
@@ -98,7 +98,7 @@ public class Client {
     private void prompt() {
         System.out.println("\nFISH client ready.");
         for (boolean stop = false; !stop; ) {
-            System.out.print("\n1. Search\n2. Exit\n> ");
+            System.out.print("\n1. Search\n2. Update\n3. Exit\n> ");
             switch (new Scanner(System.in).nextLine()) {
                 case "1":
                     try {
@@ -109,8 +109,14 @@ public class Client {
                     break;
                 case "2":
                     try {
+                        update();
+                    } catch (IOException | ClassNotFoundException | ProtocolException e) {
+                        System.out.println("Error: " + e.getMessage());
+                    }
+                    break;
+                case "3":
+                    try {
                         unregister();
-                        System.out.println("Unregistered");
                     } catch (IOException | ClassNotFoundException | ProtocolException e) {
                         System.out.println("Error: " + e.getMessage());
                     }
@@ -134,9 +140,9 @@ public class Client {
         if (m.getContent() != null) {
             System.out.println("Available at:");
             int i = 0;
-            ArrayList<ClientAddress> remoteClients = (ArrayList<ClientAddress>) m.getContent();
-            for (ClientAddress cA : remoteClients) {
-                System.out.println(++i + ". " + cA);
+            ArrayList<FileAddress> remoteClients = (ArrayList<FileAddress>) m.getContent();
+            for (FileAddress fA : remoteClients) {
+                System.out.println(++i + ". " + fA);
             }
 
             for (boolean stop = false; !stop; ) {
@@ -150,7 +156,7 @@ public class Client {
                 if (input == 0) {
                     stop = true;
                 } else if (input >= 1 && input <= i) {
-                    fetch(remoteClients.get(input-1), fileName);
+                    fetch(remoteClients.get(input - 1));
                     stop = true;
                 } else {
                     System.out.println("Invalid input");
@@ -161,21 +167,21 @@ public class Client {
         }
     }
 
-    private void fetch(ClientAddress clientAddress, String fileName) throws IOException, ClassNotFoundException, ProtocolException {
+    private void fetch(FileAddress fileAddress) throws IOException, ClassNotFoundException, ProtocolException {
         // connect
-        Socket remoteClientSocket = new Socket(clientAddress.getIp(), clientAddress.getPort());
+        Socket remoteClientSocket = new Socket(fileAddress.getIp(), fileAddress.getPort());
         ObjectOutputStream outRC = new ObjectOutputStream(remoteClientSocket.getOutputStream());
         outRC.flush();
         ObjectInputStream inRC = new ObjectInputStream(remoteClientSocket.getInputStream());
 
         // request
-        outRC.writeObject(new Message(MessageDescriptor.FETCH_FILE, fileName));
+        outRC.writeObject(new Message(MessageDescriptor.FETCH_FILE, fileAddress.getFile()));
         System.out.println("Sent request");
 
         // receive
         File dir = new File(downloadPath);
         dir.mkdir();
-        File file = new File(dir.getName() + File.separator + fileName);
+        File file = new File(dir.getName() + File.separator + fileAddress.getFile());
         byte[] data = (byte[]) inRC.readObject();
         Files.write(file.toPath(), data);
         System.out.println("Received file");
@@ -187,13 +193,17 @@ public class Client {
 
         if (sharedFilePath.equals(downloadPath)) {
             // update file list
-            outS.writeObject(new Message(MessageDescriptor.UPDATE, getFileList(false)));
-            Message m = (Message) inS.readObject();
-            if (m.getDescriptor() != MessageDescriptor.UPDATE_OK) {
-                throw new ProtocolException("Did not receive UPDATE_OK");
-            }
-            System.out.println("Updated file list");
+
         }
+    }
+
+    private void update() throws IOException, ClassNotFoundException, ProtocolException {
+        outS.writeObject(new Message(MessageDescriptor.UPDATE, getFileList(false)));
+        Message m = (Message) inS.readObject();
+        if (m.getDescriptor() != MessageDescriptor.UPDATE_OK) {
+            throw new ProtocolException("Did not receive UPDATE_OK");
+        }
+        System.out.println("Updated file list");
     }
 
     private void unregister() throws IOException, ClassNotFoundException, ProtocolException {
@@ -202,6 +212,7 @@ public class Client {
         if (m.getDescriptor() != MessageDescriptor.UNREGISTER_OK) {
             throw new ProtocolException("Did not receive UNREGISTER_OK");
         }
+        System.out.println("Unregistered");
     }
 
     public static void main(String[] args) {

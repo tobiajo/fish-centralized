@@ -1,8 +1,8 @@
 package se.kth.id2212.project.fish.server;
 
+import se.kth.id2212.project.fish.common.FileAddress;
 import se.kth.id2212.project.fish.common.Message;
 import se.kth.id2212.project.fish.common.MessageDescriptor;
-import se.kth.id2212.project.fish.common.ClientAddress;
 import se.kth.id2212.project.fish.common.ProtocolException;
 
 import java.io.IOException;
@@ -27,6 +27,7 @@ public class ClientHandler implements Runnable {
     public void run() {
         if (connect() && register()) serve();
         server.removeFileList(clientSocket);
+        clientPrint("Unregistered");
         disconnect();
     }
 
@@ -73,7 +74,7 @@ public class ClientHandler implements Runnable {
                         search((String) m.getContent());
                         break;
                     case UNREGISTER:
-                        unregister();
+                        out.writeObject(new Message(MessageDescriptor.UNREGISTER_OK, null));
                         stop = true;
                         break;
                     case UPDATE:
@@ -82,15 +83,17 @@ public class ClientHandler implements Runnable {
                     default:
                         throw new ProtocolException("Received " + m.getDescriptor().name());
                 }
-            } catch (IOException | ClassNotFoundException | ProtocolException e) {
-                clientPrint("Error: " + e.getMessage());
+            } catch (IOException e) {
+                clientPrint("Connection lost: " + e.getMessage());
                 stop = true;
+            } catch (ClassNotFoundException | ProtocolException e) {
+                clientPrint("Error: " + e.getMessage());
             }
         }
     }
 
     private void search(String request) throws IOException {
-        ArrayList<ClientAddress> result = server.searchFileLists(clientSocket, request);
+        ArrayList<FileAddress> result = server.searchFileLists(clientSocket, request);
         out.writeObject(new Message(MessageDescriptor.SEARCH_RESULT, result));
         clientPrint("Searched");
     }
@@ -99,11 +102,6 @@ public class ClientHandler implements Runnable {
         server.addFileList(clientSocket, sharedFiles);
         out.writeObject(new Message(MessageDescriptor.UPDATE_OK, null));
         clientPrint("Updated");
-    }
-
-    private void unregister() throws IOException {
-        out.writeObject(new Message(MessageDescriptor.UNREGISTER_OK, null));
-        clientPrint("Unregistered");
     }
 
     private boolean disconnect() {

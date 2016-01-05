@@ -9,7 +9,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
 
-public class P2PHandler implements Runnable{
+public class P2PHandler implements Runnable {
 
     private String sharedFilePath;
     private Socket remoteClientSocket;
@@ -30,7 +30,7 @@ public class P2PHandler implements Runnable{
 
             // receive message
             Message request = (Message) in.readObject();
-            if(request.getDescriptor() != MessageDescriptor.FETCH_FILE) {
+            if (request.getDescriptor() != MessageDescriptor.FETCH_FILE) {
                 throw new ProtocolException("Did not receive FETCH_FILE");
             }
 

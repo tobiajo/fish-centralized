@@ -1,6 +1,6 @@
 package se.kth.id2212.project.fish.server;
 
-import se.kth.id2212.project.fish.common.ClientAddress;
+import se.kth.id2212.project.fish.common.FileAddress;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -28,7 +28,7 @@ public class Server {
             System.out.println("Opening server socket " + serverPort + "...");
             ServerSocket serverSocket = new ServerSocket(serverPort);
             System.out.println("\nFISH server ready.\n");
-            for (;;) {
+            for (; ; ) {
                 Socket clientSocket = serverSocket.accept();
                 new Thread(new ClientHandler(this, clientSocket)).start();
             }
@@ -45,14 +45,14 @@ public class Server {
         fileLists.remove(clientSocket);
     }
 
-    public ArrayList<ClientAddress> searchFileLists(Socket clientSocket, String request) {
-        ArrayList<ClientAddress> ret = new ArrayList<>();
+    public ArrayList<FileAddress> searchFileLists(Socket clientSocket, String request) {
+        ArrayList<FileAddress> ret = new ArrayList<>();
 
         fileLists.keySet().forEach(socket -> {
             fileLists.get(socket).forEach(file -> {
-                if (file.equals(request)) {
+                if (file.contains(request)) {
                     if (socket != clientSocket) {
-                        ret.add(new ClientAddress(socket.getInetAddress().getHostAddress(), socket.getPort()));
+                        ret.add(new FileAddress(socket.getInetAddress().getHostAddress(), socket.getPort(), file));
                     }
                 }
             });
