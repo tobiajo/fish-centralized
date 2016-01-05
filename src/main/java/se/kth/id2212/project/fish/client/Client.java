@@ -193,7 +193,7 @@ public class Client {
 
         if (sharedFilePath.equals(downloadPath)) {
             // update file list
-
+            update();
         }
     }
 
