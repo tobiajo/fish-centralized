@@ -5,18 +5,18 @@ import java.io.Serializable;
 public class Message implements Serializable {
 
     private MessageDescriptor descriptor;
-    private Serializable data;
+    private Serializable content;
 
-    public Message(MessageDescriptor descriptor, Serializable data) {
+    public Message(MessageDescriptor descriptor, Serializable content) {
         this.descriptor = descriptor;
-        this.data = data;
+        this.content = content;
     }
 
     public MessageDescriptor getDescriptor() {
         return descriptor;
     }
 
-    public Serializable getData() {
-        return data;
+    public Serializable getContent() {
+        return content;
     }
 }

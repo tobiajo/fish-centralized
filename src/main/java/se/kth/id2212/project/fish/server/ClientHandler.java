@@ -2,6 +2,7 @@ package se.kth.id2212.project.fish.server;
 
 import se.kth.id2212.project.fish.common.Message;
 import se.kth.id2212.project.fish.common.MessageDescriptor;
+import se.kth.id2212.project.fish.common.ClientAddress;
 import se.kth.id2212.project.fish.common.ProtocolException;
 
 import java.io.IOException;
@@ -15,29 +16,29 @@ public class ClientHandler implements Runnable {
     private ObjectInputStream in;
     private ObjectOutputStream out;
     private Server server;
-    private Socket socket;
+    private Socket clientSocket;
 
     public ClientHandler(Server server, Socket socket) {
         this.server = server;
-        this.socket = socket;
+        this.clientSocket = socket;
     }
 
     @Override
     public void run() {
         if (connect() && register()) serve();
-        server.removeFileList(socket);
+        server.removeFileList(clientSocket);
         disconnect();
     }
 
     private void clientPrint(String msg) {
-        System.out.println("(" + socket.getInetAddress().getHostAddress() + ") " + msg);
+        System.out.println("(" + clientSocket.getInetAddress().getHostAddress() + ":" + clientSocket.getPort() + ") " + msg);
     }
 
     private boolean connect() {
         try {
-            out = new ObjectOutputStream(socket.getOutputStream());
+            out = new ObjectOutputStream(clientSocket.getOutputStream());
             out.flush();
-            in = new ObjectInputStream(socket.getInputStream());
+            in = new ObjectInputStream(clientSocket.getInputStream());
             clientPrint("Connected");
             return true;
         } catch (IOException e) {
@@ -50,10 +51,10 @@ public class ClientHandler implements Runnable {
         try {
             Message m = (Message) in.readObject();
             if (m.getDescriptor() != MessageDescriptor.REGISTER) {
-                throw new ProtocolException();
+                throw new ProtocolException("Did not receive REGISTER");
             }
-            ArrayList<String> sharedFiles = (ArrayList<String>) m.getData();
-            server.addFileList(socket, sharedFiles);
+            ArrayList<String> sharedFiles = (ArrayList<String>) m.getContent();
+            server.addFileList(clientSocket, sharedFiles);
             out.writeObject(new Message(MessageDescriptor.REGISTER_OK, null));
             clientPrint("Registered");
             return true;
@@ -69,27 +70,36 @@ public class ClientHandler implements Runnable {
                 Message m = (Message) in.readObject();
                 switch (m.getDescriptor()) {
                     case SEARCH:
-                        search((String) m.getData());
+                        search((String) m.getContent());
                         break;
                     case UNREGISTER:
                         unregister();
                         stop = true;
                         break;
+                    case UPDATE:
+                        update((ArrayList<String>) m.getContent());
+                        break;
                     default:
-                        throw new ProtocolException();
+                        throw new ProtocolException("Received " + m.getDescriptor().name());
                 }
             } catch (IOException e) {
                 stop = true; // connection error => break loop
             } catch (ClassNotFoundException | ProtocolException e) {
-                clientPrint("Received invalid message!");
+                clientPrint("Received invalid message: " + e.getMessage());
             }
         }
     }
 
     private void search(String request) throws IOException {
-        ArrayList<String> result = server.searchFileLists(request);
+        ArrayList<ClientAddress> result = server.searchFileLists(clientSocket, request);
         out.writeObject(new Message(MessageDescriptor.SEARCH_RESULT, result));
         clientPrint("Searched");
+    }
+
+    private void update(ArrayList<String> sharedFiles) throws IOException {
+        server.addFileList(clientSocket, sharedFiles);
+        out.writeObject(new Message(MessageDescriptor.UPDATE_OK, null));
+        clientPrint("Updated");
     }
 
     private void unregister() throws IOException {
@@ -101,7 +111,7 @@ public class ClientHandler implements Runnable {
         try {
             in.close();
             out.close();
-            socket.close();
+            clientSocket.close();
             clientPrint("Disconnected");
             return true;
         } catch (IOException e) {

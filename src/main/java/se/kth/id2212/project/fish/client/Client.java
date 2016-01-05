@@ -2,108 +2,92 @@ package se.kth.id2212.project.fish.client;
 
 import se.kth.id2212.project.fish.common.Message;
 import se.kth.id2212.project.fish.common.MessageDescriptor;
+import se.kth.id2212.project.fish.common.ClientAddress;
 import se.kth.id2212.project.fish.common.ProtocolException;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.InputMismatchException;
 import java.util.Scanner;
 
 public class Client {
 
+    private static final String DEFAULT_DOWNLOAD_PATH = "download";
     private static final String DEFAULT_SHARED_FILE_PATH = "shared";
-    private static final String DEFAULT_SERVER_ADDRESS = "localhost";
-    private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
-    private static final String DEFAULT_SHARE_PORT = "6959";
+    private static final String DEFAULT_SERVER_ADDRESS = "127.0.0.1";
+    private static final int DEFAULT_SERVER_PORT = 6958; // FI5H => 6-9-5-8
 
-    private static final boolean DEBUG = false;
 
-    public String getSharedFilePath() {
-        return sharedFilePath;
-    }
-
-    public String getSharePort() {
-        return sharePort;
-    }
-
-    private String sharedFilePath, serverAddress, serverPort, sharePort;
-    private Socket socket;
-    private ObjectInputStream in;
-    private ObjectOutputStream out;
+    private String sharedFilePath, downloadPath, serverAddress;
+    private int serverPort;
+    private Socket serverSocket;
+    private ObjectInputStream inS;
+    private ObjectOutputStream outS;
 
     public Client() {
-        this(DEFAULT_SHARED_FILE_PATH, DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT, DEFAULT_SHARE_PORT);
+        this(DEFAULT_DOWNLOAD_PATH, DEFAULT_SHARED_FILE_PATH, DEFAULT_SERVER_ADDRESS, DEFAULT_SERVER_PORT);
     }
 
-    public Client(String sharedFilePath, String serverAddress, String serverPort, String sharePort) {
+    public Client(String downloadPath, String sharedFilePath, String serverAddress, int serverPort) {
         this.sharedFilePath = sharedFilePath;
+        this.downloadPath = downloadPath;
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
-        this.sharePort = sharePort;
     }
 
     public void run() {
         System.out.println("Connecting to " + serverAddress + ":" + serverPort + "...");
 
-        if(DEBUG != true) {
-            System.out.println("Sharing files");
-            share();
-        }
-
-
         if (connect() && register())  {
+            int sharePort = serverSocket.getLocalPort();
+            System.out.println("Opening share socket " + sharePort + "...");
+            P2PHandler.getShareThread(sharedFilePath, sharePort).start();
             prompt();
+            System.exit(0);
         }
-
-    }
-
-
-    private void share() {
-
-        ShareThread shareThread = new ShareThread(this);
-        shareThread.start();
-
     }
 
     private boolean connect() {
         try {
-            socket = new Socket(serverAddress, Integer.parseInt(serverPort));
-            out = new ObjectOutputStream(socket.getOutputStream());
-            out.flush();
-            in = new ObjectInputStream(socket.getInputStream());
+            serverSocket = new Socket(serverAddress, serverPort);
+            outS = new ObjectOutputStream(serverSocket.getOutputStream());
+            outS.flush();
+            inS = new ObjectInputStream(serverSocket.getInputStream());
             System.out.println("Connected");
             return true;
         } catch (IOException e) {
-            System.out.println("Connecting failed");
+            System.out.println("Connecting failed: " + e.getMessage());
             return false;
         }
     }
 
     private boolean register() {
         try {
-            out.writeObject(new Message(MessageDescriptor.REGISTER, getFileList()));
-            Message m = (Message) in.readObject();
+            outS.writeObject(new Message(MessageDescriptor.REGISTER, getFileList(true)));
+            Message m = (Message) inS.readObject();
             if (m.getDescriptor() != MessageDescriptor.REGISTER_OK) {
-                throw new ProtocolException();
+                throw new ProtocolException("Did not receive REGISTER_OK");
             }
             System.out.println("Registered");
             return true;
         } catch (IOException | ClassNotFoundException | ProtocolException e) {
-            System.out.println("Registration failed");
+            System.out.println("Registration failed: " + e.getMessage());
             return false;
         }
     }
 
-    public ArrayList<String> getFileList() {
+    public ArrayList<String> getFileList(boolean print) {
         ArrayList<String> ret = new ArrayList<>();
 
-        System.out.println("Shared files:");
+        if (print) System.out.println("Shared files:");
         File dir = new File(sharedFilePath);
         dir.mkdir();
         File[] files = dir.listFiles();
         for (File f : files) {
             if (f.isFile()) {
-                System.out.println("  " + sharedFilePath + "/" + f.getName());
+                if (print) System.out.println("  " + sharedFilePath + File.separator + f.getName());
                 ret.add(f.getName());
             }
         }
@@ -120,7 +104,7 @@ public class Client {
                     try {
                         search();
                     } catch (IOException | ClassNotFoundException | ProtocolException e) {
-                        System.out.println("Search failed");
+                        System.out.println("Error: " + e.getMessage());
                     }
                     break;
                 case "2":
@@ -128,8 +112,7 @@ public class Client {
                         unregister();
                         System.out.println("Unregistered");
                     } catch (IOException | ClassNotFoundException | ProtocolException e) {
-                        System.out.println("Unregistration failed");
-                        return;
+                        System.out.println("Error: " + e.getMessage());
                     }
                     stop = true;
                     break;
@@ -140,89 +123,84 @@ public class Client {
         }
     }
 
-    private void fetch(String fileName, String address, String destinationPath) throws IOException, ClassNotFoundException, ProtocolException {
-        Socket sourceSocket = new Socket(address, Integer.parseInt(sharePort));
-        out = new ObjectOutputStream(sourceSocket.getOutputStream());
-        out.flush();
-
-        out.writeObject(new Message(MessageDescriptor.FETCH_FILE, destinationPath + "/" + fileName));
-
-        FileOutputStream fos = new FileOutputStream(fileName);
-        BufferedOutputStream out = new BufferedOutputStream(fos);
-        byte[] buffer = new byte[1024];
-        int count;
-        InputStream in = sourceSocket.getInputStream();
-        while((count = in.read(buffer)) >= 0) {
-            fos.write(buffer, 0, count);
-        }
-
-        System.out.println("File downloaded!");
-
-
-    }
-
     private void search() throws IOException, ClassNotFoundException, ProtocolException {
         System.out.print("Request: ");
         String fileName = new Scanner(System.in).nextLine();
-
-        out.writeObject(new Message(MessageDescriptor.SEARCH, fileName));
-        Message m = (Message) in.readObject();
+        outS.writeObject(new Message(MessageDescriptor.SEARCH, fileName));
+        Message m = (Message) inS.readObject();
         if (m.getDescriptor() != MessageDescriptor.SEARCH_RESULT) {
-            throw new ProtocolException();
+            throw new ProtocolException("Did not receive SEARCH_RESULT");
         }
-
-        final int[] seedNumber = {1};
-        StringBuilder sb = new StringBuilder();
-        if (m.getData() != null) {
+        if (m.getContent() != null) {
             System.out.println("Available at:");
-
-            ArrayList<String> hosts = (ArrayList<String>) m.getData();
-            hosts.forEach(address -> {System.out.println(seedNumber[0] + ". "+ address); seedNumber[0]++; });
-            System.out.println("Do you want to download the file?");
-
-            System.out.print("\n1. Yes\n2. No\n> ");
-            Scanner input = new Scanner(System.in);
-
-
-            int num = 0;
-            switch (input.nextLine()) {
-                case "1":
-                    System.out.println("Pick host number:\n>");
-                    try {
-                       num =  Integer.parseInt(input.next());
-
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid input");
-                        break;
-                    }
-
-                    if((num > seedNumber[0]) && (num > 0)) {
-                        System.out.println("Invalid input");
-                        break;
-                    }
-
-                    fetch(fileName,hosts.get(num-1),sharedFilePath);
-
-
-                    break;
-                case "2":
-                    break;
-                default:
-                    System.out.println("Invalid input");
-                    break;
+            int i = 0;
+            ArrayList<ClientAddress> remoteClients = (ArrayList<ClientAddress>) m.getContent();
+            for (ClientAddress cA : remoteClients) {
+                System.out.println(++i + ". " + cA);
             }
 
+            for (boolean stop = false; !stop; ) {
+                System.out.print("Download from (0 = none): ");
+                int input;
+                try {
+                    input = new Scanner(System.in).nextInt();
+                } catch (InputMismatchException e) {
+                    input = -1;
+                }
+                if (input == 0) {
+                    stop = true;
+                } else if (input >= 1 && input <= i) {
+                    fetch(remoteClients.get(input-1), fileName);
+                    stop = true;
+                } else {
+                    System.out.println("Invalid input");
+                }
+            }
         } else {
             System.out.println("File not found");
         }
     }
 
+    private void fetch(ClientAddress clientAddress, String fileName) throws IOException, ClassNotFoundException, ProtocolException {
+        // connect
+        Socket remoteClientSocket = new Socket(clientAddress.getIp(), clientAddress.getPort());
+        ObjectOutputStream outRC = new ObjectOutputStream(remoteClientSocket.getOutputStream());
+        outRC.flush();
+        ObjectInputStream inRC = new ObjectInputStream(remoteClientSocket.getInputStream());
+
+        // request
+        outRC.writeObject(new Message(MessageDescriptor.FETCH_FILE, fileName));
+        System.out.println("Sent request");
+
+        // receive
+        File dir = new File(downloadPath);
+        dir.mkdir();
+        File file = new File(dir.getName() + File.separator + fileName);
+        byte[] data = (byte[]) inRC.readObject();
+        Files.write(file.toPath(), data);
+        System.out.println("Received file");
+
+        // disconnect
+        inRC.close();
+        outRC.close();
+        remoteClientSocket.close();
+
+        if (sharedFilePath.equals(downloadPath)) {
+            // update file list
+            outS.writeObject(new Message(MessageDescriptor.UPDATE, getFileList(false)));
+            Message m = (Message) inS.readObject();
+            if (m.getDescriptor() != MessageDescriptor.UPDATE_OK) {
+                throw new ProtocolException("Did not receive UPDATE_OK");
+            }
+            System.out.println("Updated file list");
+        }
+    }
 
     private void unregister() throws IOException, ClassNotFoundException, ProtocolException {
-        out.writeObject(new Message(MessageDescriptor.UNREGISTER, null));
-        Message m = (Message) in.readObject();
+        outS.writeObject(new Message(MessageDescriptor.UNREGISTER, null));
+        Message m = (Message) inS.readObject();
         if (m.getDescriptor() != MessageDescriptor.UNREGISTER_OK) {
-            throw new ProtocolException();
+            throw new ProtocolException("Did not receive UNREGISTER_OK");
         }
     }
 
@@ -230,9 +208,10 @@ public class Client {
         if (args.length == 0) {
             new Client().run();
         } else if (args.length == 4) {
-            new Client(args[0], args[1], args[2], args[3]).run();
+            new Client(args[0], args[1], args[2], Integer.parseInt(args[3])).run();
         } else {
-            System.out.println("error: invalid number of arguments");
+            System.out.println("FISH client: invalid number of arguments\n" +
+                    "Usage: java Client [download_path] [shared_file_path] [server_address] [server_port]");
         }
     }
 }

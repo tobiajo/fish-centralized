@@ -1,5 +1,7 @@
 package se.kth.id2212.project.fish.server;
 
+import se.kth.id2212.project.fish.common.ClientAddress;
+
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -8,30 +10,30 @@ import java.util.HashMap;
 
 public class Server {
 
-    private static final String DEFAULT_SERVER_PORT = "6958"; // FI5H => 6-9-5-8
+    private static final int DEFAULT_SERVER_PORT = 6958; // FI5H => 6-9-5-8
 
-    private String serverPort;
+    private int serverPort;
     private HashMap<Socket, ArrayList<String>> fileLists = new HashMap<>();
 
     public Server() {
         this(DEFAULT_SERVER_PORT);
     }
 
-    public Server(String serverPort) {
+    public Server(int serverPort) {
         this.serverPort = serverPort;
     }
 
     public void run() {
         try {
             System.out.println("Opening server socket " + serverPort + "...");
-            ServerSocket serverSocket = new ServerSocket(Integer.parseInt(serverPort));
+            ServerSocket serverSocket = new ServerSocket(serverPort);
             System.out.println("\nFISH server ready.\n");
             for (;;) {
-                Socket socket = serverSocket.accept();
-                new Thread(new ClientHandler(this, socket)).start();
+                Socket clientSocket = serverSocket.accept();
+                new Thread(new ClientHandler(this, clientSocket)).start();
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("Server crashed: " + e.getMessage());
         }
     }
 
@@ -43,13 +45,15 @@ public class Server {
         fileLists.remove(clientSocket);
     }
 
-    public ArrayList<String> searchFileLists(String request) {
-        ArrayList<String> ret = new ArrayList<>();
+    public ArrayList<ClientAddress> searchFileLists(Socket clientSocket, String request) {
+        ArrayList<ClientAddress> ret = new ArrayList<>();
 
         fileLists.keySet().forEach(socket -> {
             fileLists.get(socket).forEach(file -> {
                 if (file.equals(request)) {
-                    ret.add(socket.getInetAddress().getHostAddress());
+                    if (socket != clientSocket) {
+                        ret.add(new ClientAddress(socket.getInetAddress().getHostAddress(), socket.getPort()));
+                    }
                 }
             });
         });
@@ -62,9 +66,10 @@ public class Server {
         if (args.length == 0) {
             new Server().run();
         } else if (args.length == 1) {
-            new Server(args[0]).run();
+            new Server(Integer.parseInt(args[0])).run();
         } else {
-            System.out.println("error: invalid number of arguments");
+            System.out.println("FISH server: invalid number of arguments\n" +
+                    "Usage: java Server [server_port]");
         }
     }
 }
